@@ -1,0 +1,21 @@
+html
+  head
+    title= 'Lab9'
+    style
+      include style.css
+  body
+    h2= header
+    each _, i in rows
+      h3= 'PostgreSQL ' + names[i] + ' at ' + conn[i].host + ':' + conn[i].port
+      table
+        tr
+          th= 'id'
+          th= 'title'
+          th= 'short_code'
+          for rec in rows[i]
+            tr
+              td= rec.id
+              td= rec.title
+              td= rec.short_code
+              td
+                a(href='/id/' + rec.id) view
