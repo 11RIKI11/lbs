@@ -25,7 +25,7 @@ public class TreeToExcel
 
     public void RunBenchmarksAndExportToExcel()
     {
-        var sizes = new[] { 60, 500, 1600, 6000, 9500 };
+        var sizes = new[] { 40, 150, 1300, 3000, 8000 };
         var rand = new Random();
 
         ExcelPackage.License.SetNonCommercialOrganization("My Noncommercial organization");

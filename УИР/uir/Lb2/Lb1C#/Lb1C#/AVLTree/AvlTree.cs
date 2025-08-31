@@ -38,8 +38,6 @@ public class AvlTree
         return Height(Root);
     }
 
-    // ========= Приватные методы ==========
-
     private AvlTreeNode Insert(AvlTreeNode node, string phone)
     {
         if (node == null) return new AvlTreeNode(phone);
@@ -50,7 +48,7 @@ public class AvlTree
         else if (cmp > 0)
             node.Right = Insert(node.Right, phone);
         else
-            return node; // дубликаты игнорируются
+            return node;
 
         UpdateHeight(node);
         return Balance(node);
