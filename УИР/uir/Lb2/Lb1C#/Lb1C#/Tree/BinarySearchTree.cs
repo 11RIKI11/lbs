@@ -18,7 +18,6 @@ public class BinarySearchTree
             node.Left = Add(node.Left, phone);
         else if (string.Compare(phone, node.Phone) > 0)
             node.Right = Add(node.Right, phone);
-        // дубликаты игнорируются
         return node;
     }
 

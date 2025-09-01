@@ -10,7 +10,8 @@ public partial class MainForm : Form
     private TreeView avlTreeView;
     private TreeView bstTreeView;
 
-    private Button gen50Btn, gen500Btn, gen1600Btn, gen6000Btn, gen9500Btn;
+    private TextBox genCountBox;
+    private Button generateBtn;
 
     private Label infoLabel;
     private TextBox inputBox;
@@ -26,29 +27,65 @@ public partial class MainForm : Form
 
     private void InitControls()
     {
-        inputBox = new TextBox { Left = 10, Top = 10, Width = 200 };
-        loadBtn = new Button { Text = "Load", Left = 220, Top = 10, Height = 30 };
-        addBtn = new Button { Text = "Add", Left = 10, Top = 40, Height = 30 };
-        deleteBtn = new Button { Text = "Delete", Left = 80, Top = 40, Height = 30 };
-        findBtn = new Button { Text = "Find", Left = 160, Top = 40, Height = 30 };
-        clearBtn = new Button { Text = "Clear All", Left = 240, Top = 40, Height = 30 };
-        toExcelBtn = new Button { Text = "Create excel", Left = 320, Top = 40, Height = 30 };
+        BackColor = Color.FromArgb(245, 245, 250); // светло-серый фон
 
-        gen50Btn = new Button { Text = "Gen 50", Left = 320, Top = 10, Height = 30, Width = 90 };
-        gen500Btn = new Button { Text = "Gen 500", Left = 430, Top = 10, Height = 30, Width = 90 };
-        gen1600Btn = new Button { Text = "Gen 1600", Left = 540, Top = 10, Height = 30, Width = 90 };
-        gen6000Btn = new Button { Text = "Gen 6000", Left = 650, Top = 10, Height = 30, Width = 90 };
-        gen9500Btn = new Button { Text = "Gen 9500", Left = 760, Top = 10, Height = 30, Width = 90 };
+        inputBox = new TextBox { Left = 10, Top = 10, Width = 200 };
+        loadBtn = new Button { Text = "Загрузить из файла", Left = 220, Top = 10, Height = 30 };
+        addBtn = new Button { Text = "Добавить", Left = 10, Top = 40, Height = 30 };
+        deleteBtn = new Button { Text = "Удалить", Left = 80, Top = 40, Height = 30 };
+        findBtn = new Button { Text = "Найти", Left = 160, Top = 40, Height = 30 };
+        clearBtn = new Button { Text = "Удалить всё", Left = 240, Top = 40, Height = 30 };
+        toExcelBtn = new Button { Text = "Создать excel", Left = 320, Top = 40, Height = 30 };
+
+        genCountBox = new TextBox{ Left = 620, Top = 10, Width = 100, Height = 30, PlaceholderText = "Кол-во"};
+
+        generateBtn = new Button{ Text = "Сгенерировать", Left = 730, Top = 10, Width = 120, Height = 30 };
+
 
         bstTreeView = new TreeView { Left = 10, Top = 80, Width = 280, Height = 300 };
         avlTreeView = new TreeView { Left = 320, Top = 80, Width = 280, Height = 300 };
 
         infoLabel = new Label { Left = 10, Top = 400, Width = 900, Height = 50 };
 
+        genCountBox.BackColor = Color.White;
+        genCountBox.ForeColor = Color.Black;
+
+        inputBox.BackColor = Color.White;
+        inputBox.ForeColor = Color.Black;
+
+        infoLabel.BackColor = Color.WhiteSmoke;
+        infoLabel.ForeColor = Color.DarkSlateGray;
+        infoLabel.BorderStyle = BorderStyle.FixedSingle;
+
+        //Верхняя зона
+        inputBox.SetBounds(10, 10, 200, 30);
+        loadBtn.SetBounds(220, 10, 150, 30);
+        genCountBox.SetBounds(380, 10, 80, 30);
+        generateBtn.SetBounds(470, 10, 120, 30);
+
+
+        //Средняя зона
+        addBtn.SetBounds(10, 50, 100, 30);
+        deleteBtn.SetBounds(120, 50, 100, 30);
+        findBtn.SetBounds(230, 50, 100, 30);
+        clearBtn.SetBounds(340, 50, 120, 30);
+        toExcelBtn.SetBounds(470, 50, 130, 30);
+
+        //Деревья
+        bstTreeView.SetBounds(10, 100, 380, 300);
+        avlTreeView.SetBounds(400, 100, 380, 300);
+
+        bstTreeView.BackColor = Color.White;
+        avlTreeView.BackColor = Color.White;
+
+        //Нижняя зона
+        infoLabel.SetBounds(10, 410, 770, 40);
+
+
         var bstContextMenu = new ContextMenuStrip();
         var avlContextMenu = new ContextMenuStrip();
-        bstContextMenu.Items.Add("Copy to Clipboard", null, CopyToClipboard_BST);
-        avlContextMenu.Items.Add("Copy to Clipboard", null, CopyToClipboard_AVL);
+        bstContextMenu.Items.Add("Копировать", null, CopyToClipboard_BST);
+        avlContextMenu.Items.Add("Копировать", null, CopyToClipboard_AVL);
 
         bstTreeView.ContextMenuStrip = bstContextMenu;
         avlTreeView.ContextMenuStrip = avlContextMenu;
@@ -56,8 +93,8 @@ public partial class MainForm : Form
         Controls.AddRange(new Control[]
         {
             inputBox, clearBtn, loadBtn, addBtn, deleteBtn, findBtn,
-            gen50Btn, gen500Btn, gen1600Btn, gen6000Btn, gen9500Btn,
-            avlTreeView, bstTreeView, infoLabel, toExcelBtn
+            avlTreeView, bstTreeView, infoLabel, toExcelBtn, genCountBox,
+            generateBtn
         });
 
         loadBtn.Click += LoadBtn_Click;
@@ -67,11 +104,17 @@ public partial class MainForm : Form
         clearBtn.Click += ClearBtn_Click;
         toExcelBtn.Click += (s, e) => new TreeToExcel().RunBenchmarksAndExportToExcel();
 
-        gen50Btn.Click += (s, e) => GenerateData(50);
-        gen500Btn.Click += (s, e) => GenerateData(500);
-        gen1600Btn.Click += (s, e) => GenerateData(1600);
-        gen6000Btn.Click += (s, e) => GenerateData(6000);
-        gen9500Btn.Click += (s, e) => GenerateData(9500);
+        generateBtn.Click += (s, e) =>
+        {
+            if (int.TryParse(genCountBox.Text.Trim(), out int count) && count > 0)
+            {
+                GenerateData(count);
+            }
+            else
+            {
+                MessageBox.Show("Введите корректное число для генерации", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        };
     }
 
     private void CopyToClipboard_BST(object sender, EventArgs e)
