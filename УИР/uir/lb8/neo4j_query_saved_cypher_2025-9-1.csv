@@ -1,0 +1,233 @@
+name,description,query,id,parentId,isFolder
+10,,"MATCH (u:User)-[:CREATED]->(c)
+WHERE c:Post OR c:Comment OR c:Story
+OPTIONAL MATCH (:User)-[:LIKED]->(c)
+WITH u, count(*) AS likeCount
+RETURN u.name AS userName, likeCount
+ORDER BY likeCount DESC
+LIMIT 10;",0,,false
+9,,"MATCH (u:User)
+OPTIONAL MATCH (u)-[:CREATED]->(p:Post)
+WITH u, count(p) AS postCount
+OPTIONAL MATCH (u)-[:CREATED]->(c:Comment)
+WITH u, postCount, count(c) AS commentCount
+OPTIONAL MATCH (u)-[:CREATED]->(s:Story)
+WITH u, postCount, commentCount, count(s) AS storyCount
+OPTIONAL MATCH (u)-[:LIKED]->(lp:Post)
+WITH u, postCount, commentCount, storyCount, count(lp) AS postLikes
+OPTIONAL MATCH (u)-[:LIKED]->(lc:Comment)
+WITH u, postCount, commentCount, storyCount, postLikes, count(lc) AS commentLikes
+OPTIONAL MATCH (u)-[:LIKED]->(ls:Story)
+WITH u, postCount, commentCount, storyCount, postLikes, commentLikes, count(ls) AS storyLikes
+WITH u.name AS userName,
+     postCount,
+     commentCount,
+     storyCount,
+     (postLikes + commentLikes + storyLikes) AS likeCount,
+     (postCount + commentCount + storyCount + postLikes + commentLikes + storyLikes) AS totalActivity
+RETURN userName, postCount, commentCount, storyCount, likeCount, totalActivity
+ORDER BY totalActivity DESC
+LIMIT 10;",1,,false
+8,,"MATCH (s:Story)
+WHERE s.expires_at < datetime()
+DETACH DELETE s;",2,,false
+7,,"MATCH (u:User {name: ""User_54""})
+SET u.avatar_url = ""new_avatar.png"";",3,,false
+6,,"MATCH (p:Post)
+WHERE NOT (p)<-[:COMMENTED_ON]-(:Comment)
+  AND NOT (p)<-[:LIKED]-(:User)
+RETURN p;",4,,false
+5,,"MATCH (u:User)-[:CREATED]->(c:Comment)-[:COMMENTED_ON]->(:Post)
+WHERE NOT (u)-[:MEMBER_OF]->(:Group)
+RETURN DISTINCT u.name AS userName
+ORDER BY userName DESC;",5,,false
+4,,"MATCH (u:User)
+WHERE NOT (u)-[:FRIEND]->(:User)
+  AND NOT (:User)-[:FRIEND]->(u)
+  AND NOT (:User)-[:FOLLOWS]->(u)
+RETURN u.name AS userName
+ORDER BY userName DESC;",6,,false
+3,,"MATCH (u:User)-[:CREATED]->(:Post)
+MATCH (u)-[:CREATED]->(:Story)
+MATCH (u)-[:CREATED]->(:Comment)
+RETURN u
+ORDER BY u.registered_at DESC;",7,,false
+2,,"MATCH (u:User)-[:MEMBER_OF]->(:Group)
+RETURN u;",8,,false
+1,,"MATCH (u:User)-[:CREATED]->(:Story)
+MATCH (u)-[:CREATED]->(:Post)
+MATCH (u)-[:CREATED]->(:Comment)
+RETURN u;",9,,false
+likes,,"CALL apoc.periodic.iterate(
+  ""MATCH (u:User) RETURN u.id AS uid ORDER BY uid"",
+  ""MATCH (u:User {id: uid})
+   MATCH (p:Post)
+   WHERE NOT (u)-[:CREATED]->(p)
+   WITH u, p, rand() AS r
+   WHERE r < 0.05
+   CREATE (u)-[:LIKED]->(p)"",
+  {batchSize: 100, parallel: false}
+);
+CALL apoc.periodic.iterate(
+  ""MATCH (u:User) RETURN u.id AS uid ORDER BY uid"",
+  ""MATCH (u:User {id: uid})
+   MATCH (c:Comment)
+   WHERE NOT (u)-[:CREATED]->(c)
+   WITH u, c, rand() AS r
+   WHERE r < 0.05
+   CREATE (u)-[:LIKED]->(c)"",
+  {batchSize: 100, parallel: false}
+);
+CALL apoc.periodic.iterate(
+  ""MATCH (u:User) RETURN u.id AS uid ORDER BY uid"",
+  ""MATCH (u:User {id: uid})
+   MATCH (s:Story)
+   WHERE NOT (u)-[:CREATED]->(s)
+   WITH u, s, rand() AS r
+   WHERE r < 0.05
+   CREATE (u)-[:LIKED]->(s)"",
+  {batchSize: 100, parallel: false}
+);",10,,false
+friends and followers,,"CALL apoc.periodic.iterate(
+  ""MATCH (u1:User), (u2:User) WHERE u1.id < u2.id RETURN u1.id AS id1, u2.id AS id2"",
+  ""MATCH (u1:User {id: id1}), (u2:User {id: id2})
+   WITH u1, u2, rand() AS r
+   WITH u1, u2,
+        CASE
+          WHEN r < 0.2 THEN 'FRIEND'
+          WHEN r < 0.6 THEN 'FOLLOWS'
+          ELSE 'NONE'
+        END AS relType
+   FOREACH (_ IN CASE WHEN relType = 'FRIEND' THEN [1] ELSE [] END |
+     CREATE (u1)-[:FRIEND]->(u2),
+            (u2)-[:FRIEND]->(u1)
+   )
+   FOREACH (_ IN CASE WHEN relType = 'FOLLOWS' THEN [1] ELSE [] END |
+     CREATE (u1)-[:FOLLOWS]->(u2)
+   )"",
+  {batchSize: 3000, parallel: false}
+)
+",11,,false
+comments,,"CALL apoc.periodic.iterate(
+  ""MATCH (p:Post) RETURN p"",
+  ""WITH p, toInteger(rand() * 4) AS commentCount
+   UNWIND range(1, commentCount) AS i
+   MATCH (u:User)
+   WITH p, u, i, rand() AS r
+   WHERE r < 0.05
+   CREATE (c:Comment {
+     id: p.id * 100 + i,
+     text: 'Comment on post ' + p.id + ' by user ' + u.id,
+     created_at: datetime() - duration({minutes: i})
+   }),
+   (u)-[:CREATED]->(c),
+   (c)-[:COMMENTED_ON]->(p)"",
+  {batchSize: 1000, parallel: false} //100 постов
+)",12,,false
+group posts,,"CALL apoc.periodic.iterate(
+  ""MATCH (g:Group) RETURN g"",
+  ""WITH g, g.id AS groupId, rand() AS r
+   WHERE r < 0.8
+   WITH g, groupId, toInteger(rand() * 7) + 1 AS postCount 
+   UNWIND range(1, postCount) AS i
+   CREATE (p:Post {
+     id: groupId * 1000 + i,
+     content: 'Group Post #' + groupId + '_' + i,
+     created_at: datetime() - duration({hours: i}),
+     media_url: 'group_media_' + groupId + '_' + i + '.jpg'
+   }),
+   (g)-[:CREATED]->(p)"",
+  {batchSize: 1000, parallel: false}
+)",13,,false
+groups,,"WITH range(1, 40) AS groupIds
+UNWIND groupIds AS groupId
+CREATE (:Group {
+  id: groupId,
+  name: ""Group_"" + groupId,
+  created_at: date() - duration({days: groupId}),
+  description: ""Описание сообщества #"" + groupId,
+  logo_url: ""group_"" + groupId + "".png""
+});
+CALL apoc.periodic.iterate(
+  ""MATCH (u:User) RETURN u.id AS uid"",
+  ""MATCH (u:User {id: uid})
+   MATCH (g:Group)
+   WITH u, g, rand() AS r
+   WHERE r < 0.1
+   CREATE (u)-[:MEMBER_OF]->(g)"",
+  {batchSize: 10000, parallel: false}
+);",14,,false
+Stories,,"CALL apoc.periodic.iterate(
+  ""MATCH (u:User) RETURN u"",
+  ""WITH u, rand() AS r
+   WHERE r < 0.3
+   WITH u, toInteger(rand() * 4) AS storyCount
+   UNWIND range(1, storyCount) AS i
+   CREATE (s:Story {
+     id: u.id * 10 + i,
+     created_at: datetime() - duration({hours: i}),
+     content_url: 'story_' + (u.id * 10 + i) + '.mp4',
+     expires_at: datetime() + duration({hours: 24})
+   }),
+   (u)-[:CREATED]->(s)"",
+  {batchSize: 100000, parallel: false}
+)",15,,false
+users posts,,"CALL apoc.periodic.iterate(
+  ""MATCH (u:User) RETURN u"",
+  ""WITH u, rand() AS r
+   WHERE r < 0.7
+   WITH u, toInteger(rand() * 5) AS postCount
+   UNWIND range(1, postCount) AS i
+   CREATE (p:Post {
+     id: u.id * 10 + i,
+     content: 'Post #' + u.id + '_' + i,
+     created_at: datetime() - duration({minutes: i}),
+     media_url: 'media_' + u.id + '_' + i + '.jpg'
+   }),
+   (u)-[:CREATED]->(p)"",
+  {batchSize: 10000, parallel: false}
+)",16,,false
+users,,"WITH range(1, 100) AS ids
+UNWIND ids AS id
+CREATE (:User {
+  id: id,
+  name: ""User_"" + id,
+  email: ""user_"" + id + ""@example.com"",
+  registered_at: date() - duration({days: id}),
+  avatar_url: ""avatar_"" + id + "".png""
+});",17,,false
+delete all,,"CALL apoc.periodic.iterate(
+  ""MATCH (n) RETURN n"",
+  ""DETACH DELETE n"",
+  {batchSize: 10000, parallel: false}
+)",18,,false
+post_likes,,"CALL apoc.periodic.iterate(
+  ""MATCH (u:User) RETURN u.id AS uid ORDER BY uid"",
+  ""MATCH (u:User {id: uid})
+   MATCH (p:Post)
+   WHERE NOT (u)-[:CREATED]->(p)
+   WITH u, p, rand() AS r
+   WHERE r < 0.05
+   CREATE (u)-[:LIKED]->(p)"",
+  {batchSize: 100, parallel: false}
+);",19,,false
+stiries_likes,,"CALL apoc.periodic.iterate(
+  ""MATCH (u:User) RETURN u.id AS uid ORDER BY uid"",
+  ""MATCH (u:User {id: uid})
+   MATCH (s:Story)
+   WHERE NOT (u)-[:CREATED]->(s)
+   WITH u, s, rand() AS r
+   WHERE r < 0.05
+   CREATE (u)-[:LIKED]->(s)"",
+  {batchSize: 100, parallel: false}
+);",20,,false
+comments_likes,,"CALL apoc.periodic.iterate(
+  ""MATCH (u:User) RETURN u.id AS uid ORDER BY uid"",
+  ""MATCH (u:User {id: uid})
+   MATCH (c:Comment)
+   WHERE NOT (u)-[:CREATED]->(c)
+   WITH u, c, rand() AS r
+   WHERE r < 0.05
+   CREATE (u)-[:LIKED]->(c)"",
+  {batchSize: 100, parallel: false}
+);",21,,false
