@@ -1,0 +1,186 @@
+<!-- R Commander Markdown Template -->
+
+Заменить основной заголовок
+=======================
+
+### maxbo
+
+### `r as.character(Sys.Date())`
+
+```{r echo=FALSE}
+# включить этот фрагмент кода как есть для установки параметров
+knitr::opts_chunk$set(comment=NA, prompt=TRUE, out.width=750, fig.height=8, fig.width=8)
+library(Rcmdr)
+library(car)
+library(RcmdrMisc)
+```
+
+```{r}
+Dataset <- readXL("C:/Users/maxbo/Documents/Study/3 курс/ИАД/Данные_2.xlsx", rownames=TRUE, header=TRUE, na="", 
+  sheet="Лист1", stringsAsFactors=TRUE)
+```
+
+
+### Корреляционная матрица: Dataset
+```{r}
+cor(Dataset[,c("Ёмкость..А.ч.","КПД....","Напряжение..В.","Срок_службы..циклы.","Стоимость....кВт.ч.",
+  "Удельная_энергия..Вт.ч.кг.")], use="complete")
+```
+
+
+### Матрица точечных графиков: ~Ёмкость..А.ч.+КПД....+Напряжение..В.+Срок_службы..циклы.+Стоимость....кВт.ч.+Удельная_энергия..Вт.ч.кг.
+```{r}
+scatterplotMatrix(~Ёмкость..А.ч.+КПД....+Напряжение..В.+Срок_службы..циклы.+Стоимость....кВт.ч.+Удельная_энергия..Вт.ч.кг.,
+   regLine=FALSE, smooth=FALSE, diagonal=list(method="density"), data=Dataset)
+```
+
+
+### Линейная модель: RegModel.1: Срок_службы..циклы.~Ёмкость..А.ч.
+```{r}
+RegModel.1 <- lm(Срок_службы..циклы.~Ёмкость..А.ч., data=Dataset)
+summary(RegModel.1)
+```
+
+
+### Component+Residual Plots: RegModel.1
+```{r}
+crPlots(RegModel.1, smooth=list(span=0.5))
+```
+
+
+### Линейная модель: RegModel.2: Удельная_энергия..Вт.ч.кг.~Напряжение..В.
+```{r}
+RegModel.2 <- lm(Удельная_энергия..Вт.ч.кг.~Напряжение..В., data=Dataset)
+summary(RegModel.2)
+```
+
+
+### Component+Residual Plots: RegModel.2
+```{r}
+crPlots(RegModel.2, smooth=list(span=0.5))
+```
+
+
+### Линейная модель: RegModel.4: КПД....~Удельная_энергия..Вт.ч.кг.
+```{r}
+RegModel.4 <- lm(КПД....~Удельная_энергия..Вт.ч.кг., data=Dataset)
+summary(RegModel.4)
+```
+
+
+### Линейная модель: RegModel.5: Удельная_энергия..Вт.ч.кг.~Напряжение..В.
+```{r}
+RegModel.5 <- lm(Удельная_энергия..Вт.ч.кг.~Напряжение..В., data=Dataset)
+summary(RegModel.5)
+```
+
+
+### Линейная модель: RegModel.6: Напряжение..В.~Удельная_энергия..Вт.ч.кг.
+```{r}
+RegModel.6 <- lm(Напряжение..В.~Удельная_энергия..Вт.ч.кг., data=Dataset)
+summary(RegModel.6)
+```
+
+
+### Component+Residual Plots: RegModel.6
+```{r}
+crPlots(RegModel.6, smooth=list(span=0.5))
+```
+
+
+### Линейная модель: RegModel.7: КПД....~Удельная_энергия..Вт.ч.кг.
+```{r}
+RegModel.7 <- lm(КПД....~Удельная_энергия..Вт.ч.кг., data=Dataset)
+summary(RegModel.7)
+```
+
+
+### Component+Residual Plots: RegModel.7
+```{r}
+crPlots(RegModel.7, smooth=list(span=0.5))
+```
+
+```{r}
+Dataset_test <- readXL("C:/Users/maxbo/Documents/Study/3 курс/ИАД/Пример_Данные для 2.3.xlsx", rownames=TRUE, 
+  header=TRUE, na="", sheet="Лист1", stringsAsFactors=TRUE)
+```
+
+
+### Линейная модель: RegModel.8: реальное.ВВП~бедность+безработица+образовании+общест...ое.развитие+ожидаемая.продол.ть
+```{r}
+RegModel.8 <- lm(реальное.ВВП~бедность+безработица+образовании+общест...ое.развитие+ожидаемая.продол.ть, 
+  data=Dataset_test)
+summary(RegModel.8)
+```
+
+
+### Component+Residual Plots: RegModel.8
+```{r}
+crPlots(RegModel.8, smooth=list(span=0.5))
+```
+
+```{r}
+library(MASS, pos=16)
+```
+
+
+
+### Ступенчатый выбор модели: RegModel.8
+```{r}
+stepwise(RegModel.8, direction='forward', criterion='AIC')
+```
+
+
+### Ступенчатый выбор модели: RegModel.8
+```{r}
+stepwise(RegModel.8, direction='forward/backward', criterion='AIC')
+```
+
+
+### Variance-Inflation Factors: RegModel.8
+```{r}
+vif(RegModel.8)
+```
+
+
+```{r}
+round(cov2cor(vcov(RegModel.8)), 3) # Correlations of parameter estimates
+```
+
+
+### Линейная модель: RegModel.9: Срок_службы..циклы.~Ёмкость..А.ч.+КПД....+Напряжение..В.+Стоимость....кВт.ч.+Удельная_энергия..Вт.ч.кг.
+```{r}
+RegModel.9 <- lm(Срок_службы..циклы.~Ёмкость..А.ч.+КПД....+Напряжение..В.+Стоимость....кВт.ч.+Удельная_энергия..Вт.ч.кг., data=Dataset)
+summary(RegModel.9)
+```
+
+
+### Component+Residual Plots: RegModel.9
+```{r}
+crPlots(RegModel.9, smooth=list(span=0.5))
+```
+
+
+### Ступенчатый выбор модели: RegModel.9
+```{r}
+stepwise(RegModel.9, direction='forward', criterion='AIC')
+```
+
+
+### Ступенчатый выбор модели: RegModel.9
+```{r}
+stepwise(RegModel.9, direction='forward/backward', criterion='AIC')
+```
+
+
+### Variance-Inflation Factors: RegModel.9
+```{r}
+vif(RegModel.9)
+```
+
+
+```{r}
+round(cov2cor(vcov(RegModel.9)), 3) # Correlations of parameter estimates
+```
+
+
